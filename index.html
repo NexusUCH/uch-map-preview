@@ -1,0 +1,341 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Party Map Generator r8b</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: per theme a grid of single-map thumbnails (each opens full screen), the contact sheet folded underneath, verdict notes below. */
+:root {
+  --bg: #1b1d22; --panel: #23262d; --fg: #e7e4dc; --muted: #a39e93; --accent: #f0b429; --bad: #e2574c; --line: #353a44;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; --font-mono: "IBM Plex Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg: #1b1d22; --panel: #23262d; --fg: #e7e4dc; --muted: #a39e93; --line: #353a44; color-scheme: dark; } }
+:root[data-theme="light"] { --bg: #1b1d22; --panel: #23262d; --fg: #e7e4dc; --muted: #a39e93; --line: #353a44; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; }
+main { max-width: 1680px; margin: 0 auto; display: grid; gap: 40px; }
+header h1 { font-size: 1.6rem; margin: 0 0 6px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.howto { border-left: 3px solid var(--accent); padding: 6px 14px; color: var(--fg); max-width: 75ch; margin-top: 14px; }
+.howto code { font-family: var(--font-mono); background: var(--panel); padding: 1px 6px; border-radius: 3px; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 28px; margin: 0; padding: 0; list-style: none; max-width: 1100px; }
+.summary li { display: grid; grid-template-columns: 3.4rem 1fr; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.summary b { font-family: var(--font-mono); font-size: 1.2rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.summary span { color: var(--muted); font-size: .95rem; }
+.summary span strong { color: var(--fg); font-weight: 600; }
+section.theme { display: grid; gap: 12px; }
+.theme h2 { font-size: 1.15rem; margin: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+figure.thumb { margin: 0; background: var(--panel); border: 1px solid var(--line); display: grid; grid-template-rows: 1fr auto; }
+figure.thumb .pic { display: grid; place-items: center; padding: 8px; min-height: 180px; }
+figure.thumb img { display: block; max-width: 100%; max-height: 220px; width: auto; height: auto; image-rendering: pixelated; cursor: zoom-in; }
+figure.thumb figcaption { padding: 6px 10px 8px; font-size: .82rem; color: var(--muted); border-top: 1px solid var(--line); font-family: var(--font-mono); line-height: 1.35; }
+figure.thumb figcaption b { color: var(--fg); font-family: var(--font-body); font-weight: 600; font-size: .9rem; }
+figure.thumb figcaption .seed { color: var(--accent); }
+details { border: 1px solid var(--line); background: var(--panel); }
+details summary { cursor: pointer; padding: 8px 12px; color: var(--muted); font-size: .9rem; }
+details .frame { overflow-x: auto; }
+details .frame img { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: zoom-in; }
+.notes { margin: 0; padding-left: 1.1rem; color: var(--muted); max-width: 95ch; font-size: .95rem; }
+.notes li { margin: 2px 0; }
+.notes .seed { font-family: var(--font-mono); color: var(--fg); }
+.flag { color: var(--bad); font-weight: 600; }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 14px; }
+.lightbox { position: fixed; inset: 0; background: #0e0f12; z-index: 50; overflow: auto; }
+.lightbox img { display: block; image-rendering: pixelated; cursor: zoom-out; margin: 0 auto; }
+.lightbox.fit img { max-width: 100%; max-height: calc(100vh - 44px); width: auto; height: auto; }
+.lightbox.px img { max-width: none; width: calc(var(--w) * 1px); height: auto; }
+.lightbox.x2 img { max-width: none; width: calc(var(--w) * 2px); height: auto; }
+.lightbox.x3 img { max-width: none; width: calc(var(--w) * 3px); height: auto; }
+.lb-bar { position: sticky; top: 0; display: flex; gap: 8px; align-items: center; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); background: rgba(14,15,18,.9); z-index: 1; flex-wrap: wrap; min-height: 44px; box-sizing: border-box; }
+.lb-bar span { color: var(--muted); font-size: .85rem; margin-right: auto; font-family: var(--font-mono); }
+button { font: inherit; font-size: .85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); padding: 5px 12px; cursor: pointer; }
+button:hover, button:focus-visible { border-color: var(--accent); outline: none; }
+button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap">
+
+<main>
+<header>
+  <h1>Party Map Generator, round r8b</h1>
+  <p>Every generated map as its own picture, the same code that runs in the game. Click a map to see it full screen (fit, 1:1, 2x, 3x). Green box = start plank, yellow box = goal with its red flag, white dots = the route the generator planned, magenta dots = tight spots on it. Caption: seed, map name, layout and route direction (R right, L left, U up, C centre, F flat), assisted hops, wire cells, pieces.</p>
+  <p class="howto">How to answer: name theme and seed, for example <code>cave s1</code> or <code>forest s3 s5 s8</code>, and say what is wrong or what you like. Whole-theme verdicts count too.</p>
+</header>
+<section>
+  <h2 style="font-size:1.05rem;margin:0 0 10px">What changed since 1.1.0</h2>
+  <ul class="summary">
+    <li><b>7</b><span><strong>layouts</strong> instead of one tunnel: archipelago, tree or crystal lattice, street and sky, ribbon hall, chimney, framed hall, and the 1.0.0 carved cave with its dead rooms filled</span></li>
+    <li><b>4-6</b><span><strong>layouts per theme</strong> across the 8 seeds; no two maps of a theme share layout and direction, and no two cavities look alike by the corpus threshold</span></li>
+    <li><b>0</b><span><strong>wire on route surfaces</strong> and 0 shafts wired on both walls, on all 72 maps. Wire is lethal in the route check now, so the impossible-wall case is gone</span></li>
+    <li><b>0.47</b><span><strong>solid share</strong> (1.1.0: 0.79, real maps: 0.57). Open air is back, now too much of it</span></li>
+    <li><b>3/4/5</b><span><strong>assisted hops</strong> on Medium / Normal in 26 / 25 / 13 maps; difficulty setting unchanged</span></li>
+    <li><b>124 ms</b><span><strong>per map</strong>, deterministic, same seed gives the same map</span></li>
+  </ul>
+</section>
+<section class="theme" id="forest">
+  <h2>Forest</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s1.png" alt="Forest s1 Verdant Grove 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Verdant Grove 9E37</b><br>Archipelago LU &middot; hops 4 &middot; wire 49 &middot; pcs 670<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s2.png" alt="Forest s2 Tangled Canopy 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Tangled Canopy 3C6E</b><br>Street LU &middot; hops 3 &middot; wire 52 &middot; pcs 576<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s3.png" alt="Forest s3 Overgrown Glade DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Overgrown Glade DAA6</b><br>Lattice RRU &middot; hops 5 &middot; wire 46 &middot; pcs 578<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s4.png" alt="Forest s4 Whispering Hollow 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Whispering Hollow 78DD</b><br>Carved RRUU &middot; hops 3 &middot; wire 23 &middot; pcs 692<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s5.png" alt="Forest s5 Mossy Thicket 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Mossy Thicket 1715</b><br>Lattice CU &middot; hops 3 &middot; wire 45 &middot; pcs 591<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s6.png" alt="Forest s6 Drifting Glade B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Drifting Glade B54C</b><br>Archipelago CUU &middot; hops 3 &middot; wire 47 &middot; pcs 618<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s7.png" alt="Forest s7 Whispering Hollow 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Whispering Hollow 5384</b><br>Chimney LUU &middot; hops 4 &middot; wire 39 &middot; pcs 565<br>Forest / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="forest-medium-normal-s8.png" alt="Forest s8 Verdant Grove F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Verdant Grove F1BB</b><br>Lattice LU &middot; hops 3 &middot; wire 42 &middot; pcs 613<br>Forest / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-forest.png)</summary><div class="frame"><img src="sheet-forest.png" alt="Forest contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li>Trees with branches and trunks you can climb are there (<span class="seed">s3 s5 s8</span>), but the leaf pads are tiny and the three lattice maps look alike: three trunks and sky.</li><li><span class="seed">s1 s6</span> archipelago: islands with autumn trees read well; too much empty sky between them.</li><li><span class="seed">s4</span> is the old 1.0.0 blob cave.</li></ul>
+</section>
+<section class="theme" id="cave">
+  <h2>Cave</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s1.png" alt="Cave s1 Gloomy Grotto 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Gloomy Grotto 9E37</b><br>Chimney RRUU &middot; hops 5 &middot; wire 46 &middot; pcs 422<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s2.png" alt="Cave s2 Coldvein Mine 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Coldvein Mine 3C6E</b><br>Carved RRUU &middot; hops 4 &middot; wire 29 &middot; pcs 647<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s3.png" alt="Cave s3 Forgotten Burrow DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Forgotten Burrow DAA6</b><br>Framed RRUU &middot; hops 3 &middot; wire 50 &middot; pcs 543<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s4.png" alt="Cave s4 Echoing Shaft 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Echoing Shaft 78DD</b><br>Ribbon RRU &middot; hops 5 &middot; wire 52 &middot; pcs 458<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s5.png" alt="Cave s5 Abandoned Cave 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Abandoned Cave 1715</b><br>Framed CUU &middot; hops 4 &middot; wire 43 &middot; pcs 650<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s6.png" alt="Cave s6 Hollow Burrow B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Hollow Burrow B54C</b><br>Chimney RUU &middot; hops 5 &middot; wire 37 &middot; pcs 467<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s7.png" alt="Cave s7 Echoing Shaft 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Echoing Shaft 5384</b><br>Ribbon RRF &middot; hops 4 &middot; wire 43 &middot; pcs 535<br>Cave / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="cave-medium-normal-s8.png" alt="Cave s8 Gloomy Grotto F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Gloomy Grotto F1BB</b><br>Framed LUU &middot; hops 4 &middot; wire 28 &middot; pcs 656<br>Cave / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-cave.png)</summary><div class="frame"><img src="sheet-cave.png" alt="Cave contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li><span class="flag">Weak mine identity.</span> The chimneys (<span class="seed">s1 s6</span>) are plain plank shelves in a shaft, the ribbon halls (<span class="seed">s4 s7</span>) are plain posts with slabs. The only mine-shaft tower is in <span class="seed">s3</span>.</li><li>Framed halls (<span class="seed">s5 s8</span>) with floating rock clumps are the closest to a real cave map.</li><li>The pale green and beige air tints look wrong for a cave.</li></ul>
+</section>
+<section class="theme" id="lava">
+  <h2>Lava</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s1.png" alt="Lava s1 Molten Forge 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Molten Forge 9E37</b><br>Carved RRU &middot; hops 4 &middot; wire 31 &middot; pcs 867<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s2.png" alt="Lava s2 Ember Ravine 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Ember Ravine 3C6E</b><br>Ribbon RRF &middot; hops 4 &middot; wire 52 &middot; pcs 527<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s3.png" alt="Lava s3 Infernal Crater DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Infernal Crater DAA6</b><br>Archipelago RU &middot; hops 4 &middot; wire 70 &middot; pcs 729<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s4.png" alt="Lava s4 Ashen Vents 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Ashen Vents 78DD</b><br>Chimney LUU &middot; hops 5 &middot; wire 77 &middot; pcs 524<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s5.png" alt="Lava s5 Cinder Caldera 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Cinder Caldera 1715</b><br>Street RRUU &middot; hops 4 &middot; wire 70 &middot; pcs 610<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s6.png" alt="Lava s6 Scorched Crater B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Scorched Crater B54C</b><br>Archipelago RRUU &middot; hops 4 &middot; wire 80 &middot; pcs 603<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s7.png" alt="Lava s7 Ashen Vents 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Ashen Vents 5384</b><br>Ribbon RRU &middot; hops 3 &middot; wire 71 &middot; pcs 483<br>Lava / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="lava-medium-normal-s8.png" alt="Lava s8 Molten Forge F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Molten Forge F1BB</b><br>Lattice LU &middot; hops 3 &middot; wire 78 &middot; pcs 497<br>Lava / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-lava.png)</summary><div class="frame"><img src="sheet-lava.png" alt="Lava contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li>Best sheet of the round: ribbon halls over lava (<span class="seed">s2 s7</span>), islands with fire trees (<span class="seed">s3 s6</span>), a crystal lattice (<span class="seed">s8</span>), a street with stars (<span class="seed">s5</span>).</li><li><span class="seed">s4</span> chimney has long empty lanes between shelves. <span class="seed">s1</span> is the blob cave.</li></ul>
+</section>
+<section class="theme" id="industrial">
+  <h2>Industrial</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s1.png" alt="Industrial s1 Rusty Plant 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Rusty Plant 9E37</b><br>Chimney CUU &middot; hops 4 &middot; wire 28 &middot; pcs 907<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s2.png" alt="Industrial s2 Humming Pipeyard 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Humming Pipeyard 3C6E</b><br>Archipelago LUU &middot; hops 5 &middot; wire 66 &middot; pcs 575<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s3.png" alt="Industrial s3 Clanking Foundry DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Clanking Foundry DAA6</b><br>Framed RU &middot; hops 3 &middot; wire 29 &middot; pcs 774<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s4.png" alt="Industrial s4 Toxic Refinery 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Toxic Refinery 78DD</b><br>Ribbon RRU &middot; hops 5 &middot; wire 75 &middot; pcs 622<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s5.png" alt="Industrial s5 Chemical Pipeworks 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Chemical Pipeworks 1715</b><br>Carved RRUU &middot; hops 4 &middot; wire 41 &middot; pcs 698<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s6.png" alt="Industrial s6 Leaky Foundry B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Leaky Foundry B54C</b><br>Framed RRU &middot; hops 3 &middot; wire 55 &middot; pcs 751<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s7.png" alt="Industrial s7 Toxic Refinery 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Toxic Refinery 5384</b><br>Street RRUU &middot; hops 4 &middot; wire 60 &middot; pcs 619<br>Industrial / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="industrial-medium-normal-s8.png" alt="Industrial s8 Rusty Plant F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Rusty Plant F1BB</b><br>Framed CU &middot; hops 3 &middot; wire 61 &middot; pcs 690<br>Industrial / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-industrial.png)</summary><div class="frame"><img src="sheet-industrial.png" alt="Industrial contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li><span class="flag">No pipes.</span> The pipe lattice failed the agent's own look test and is switched off, so the theme has no pipe yard yet.</li><li><span class="seed">s1</span> chimney: the dotted facade walls look like noise. <span class="seed">s5</span> is a blob cave with a grid frame.</li><li>Framed halls (<span class="seed">s3 s6 s8</span>) have tanks and catwalks but read busy; the ribbon tables in <span class="seed">s4</span> are plain.</li></ul>
+</section>
+<section class="theme" id="city">
+  <h2>City</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s1.png" alt="City s1 Downtown Blocks 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Downtown Blocks 9E37</b><br>Framed RRU &middot; hops 3 &middot; wire 29 &middot; pcs 721<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s2.png" alt="City s2 Neon Network 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Neon Network 3C6E</b><br>Street RUU &middot; hops 3 &middot; wire 37 &middot; pcs 551<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s3.png" alt="City s3 Midnight Overpass DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Midnight Overpass DAA6</b><br>Carved RRUU &middot; hops 3 &middot; wire 28 &middot; pcs 714<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s4.png" alt="City s4 Rooftop District 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Rooftop District 78DD</b><br>Chimney RUU &middot; hops 5 &middot; wire 29 &middot; pcs 732<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s5.png" alt="City s5 Rainy Avenue 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Rainy Avenue 1715</b><br>Archipelago RRU &middot; hops 3 &middot; wire 43 &middot; pcs 631<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s6.png" alt="City s6 Uptown Overpass B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Uptown Overpass B54C</b><br>Framed CUU &middot; hops 4 &middot; wire 30 &middot; pcs 686<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s7.png" alt="City s7 Rooftop District 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Rooftop District 5384</b><br>Chimney RRUU &middot; hops 4 &middot; wire 35 &middot; pcs 512<br>City / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="city-medium-normal-s8.png" alt="City s8 Downtown Blocks F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Downtown Blocks F1BB</b><br>Archipelago LU &middot; hops 4 &middot; wire 47 &middot; pcs 584<br>City / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-city.png)</summary><div class="frame"><img src="sheet-city.png" alt="City contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li><span class="seed">s2</span> street with poles, a shop and a car, and <span class="seed">s3</span> with buildings in the cavity are the two that look like a city.</li><li><span class="seed">s4 s7</span> chimneys: dotted walls again, few crossings. <span class="seed">s6</span> framed hall is mostly empty air.</li><li>Clouds appear on every sky map in every theme; they are generic.</li></ul>
+</section>
+<section class="theme" id="ruins">
+  <h2>Ruins</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s1.png" alt="Ruins s1 Ancient Pyramid 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Ancient Pyramid 9E37</b><br>Carved RRU &middot; hops 3 &middot; wire 30 &middot; pcs 910<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s2.png" alt="Ruins s2 Buried Temple 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Buried Temple 3C6E</b><br>Street RUU &middot; hops 3 &middot; wire 38 &middot; pcs 739<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s3.png" alt="Ruins s3 Crumbling Halls DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Crumbling Halls DAA6</b><br>Carved RUU &middot; hops 3 &middot; wire 32 &middot; pcs 849<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s4.png" alt="Ruins s4 Forgotten Castle 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Forgotten Castle 78DD</b><br>Framed RRUU &middot; hops 3 &middot; wire 38 &middot; pcs 801<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s5.png" alt="Ruins s5 Sunken Aqueduct 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Sunken Aqueduct 1715</b><br>Archipelago RRU &middot; hops 4 &middot; wire 36 &middot; pcs 631<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s6.png" alt="Ruins s6 Overgrown Halls B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Overgrown Halls B54C</b><br>Carved RRUU &middot; hops 3 &middot; wire 33 &middot; pcs 871<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s7.png" alt="Ruins s7 Forgotten Castle 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Forgotten Castle 5384</b><br>Ribbon LF &middot; hops 4 &middot; wire 32 &middot; pcs 612<br>Ruins / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="ruins-medium-normal-s8.png" alt="Ruins s8 Ancient Pyramid F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Ancient Pyramid F1BB</b><br>Archipelago RRUU &middot; hops 5 &middot; wire 34 &middot; pcs 694<br>Ruins / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-ruins.png)</summary><div class="frame"><img src="sheet-ruins.png" alt="Ruins contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li>Three of eight are blob caves (<span class="seed">s1 s3 s6</span>), because ruins carry the highest carved weight. No columns, no arches yet.</li><li><span class="seed">s2</span> street with a tree and <span class="seed">s7</span> ribbon with pillars are the ones with a temple feel.</li></ul>
+</section>
+<section class="theme" id="water">
+  <h2>Water</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s1.png" alt="Water s1 Sunken Hideout 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Sunken Hideout 9E37</b><br>Archipelago LU &middot; hops 3 &middot; wire 63 &middot; pcs 591<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s2.png" alt="Water s2 Flooded Reef 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Flooded Reef 3C6E</b><br>Chimney CUU &middot; hops 5 &middot; wire 29 &middot; pcs 533<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s3.png" alt="Water s3 Abyssal Tower DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Abyssal Tower DAA6</b><br>Street RUU &middot; hops 3 &middot; wire 47 &middot; pcs 504<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s4.png" alt="Water s4 Lagoon Grotto 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Lagoon Grotto 78DD</b><br>Carved RRU &middot; hops 3 &middot; wire 29 &middot; pcs 676<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s5.png" alt="Water s5 Coral Atlantis 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Coral Atlantis 1715</b><br>Ribbon LU &middot; hops 4 &middot; wire 57 &middot; pcs 487<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s6.png" alt="Water s6 Tidal Tower B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Tidal Tower B54C</b><br>Archipelago CUU &middot; hops 4 &middot; wire 53 &middot; pcs 484<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s7.png" alt="Water s7 Lagoon Grotto 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Lagoon Grotto 5384</b><br>Carved RUU &middot; hops 3 &middot; wire 29 &middot; pcs 819<br>Water / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="water-medium-normal-s8.png" alt="Water s8 Sunken Hideout F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Sunken Hideout F1BB</b><br>Ribbon LF &middot; hops 4 &middot; wire 65 &middot; pcs 540<br>Water / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-water.png)</summary><div class="frame"><img src="sheet-water.png" alt="Water contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li><span class="seed">s5</span> ribbon hall has a rust-orange background that does not read as water at all.</li><li>Seaweed and coral islands (<span class="seed">s1 s6</span>) are fine; <span class="seed">s4 s7</span> are blob caves.</li></ul>
+</section>
+<section class="theme" id="space">
+  <h2>Space</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s1.png" alt="Space s1 Orbital Outpost 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Orbital Outpost 9E37</b><br>Street LUU &middot; hops 5 &middot; wire 47 &middot; pcs 703<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s2.png" alt="Space s2 Cosmic Station 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Cosmic Station 3C6E</b><br>Carved RRU &middot; hops 3 &middot; wire 29 &middot; pcs 895<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s3.png" alt="Space s3 Silent Relay DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Silent Relay DAA6</b><br>Ribbon LU &middot; hops 4 &middot; wire 29 &middot; pcs 540<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s4.png" alt="Space s4 Nocturne Orbit 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Nocturne Orbit 78DD</b><br>Archipelago LU &middot; hops 4 &middot; wire 49 &middot; pcs 599<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s5.png" alt="Space s5 Lunar Amble 1715" loading="lazy"></div>
+      <figcaption><b><span class="seed">s5</span> Lunar Amble 1715</b><br>Framed CU &middot; hops 4 &middot; wire 32 &middot; pcs 770<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s6.png" alt="Space s6 Stellar Relay B54C" loading="lazy"></div>
+      <figcaption><b><span class="seed">s6</span> Stellar Relay B54C</b><br>Ribbon RRU &middot; hops 3 &middot; wire 37 &middot; pcs 558<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s7.png" alt="Space s7 Nocturne Orbit 5384" loading="lazy"></div>
+      <figcaption><b><span class="seed">s7</span> Nocturne Orbit 5384</b><br>Archipelago RU &middot; hops 5 &middot; wire 49 &middot; pcs 638<br>Space / Medium / Normal</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="space-medium-normal-s8.png" alt="Space s8 Orbital Outpost F1BB" loading="lazy"></div>
+      <figcaption><b><span class="seed">s8</span> Orbital Outpost F1BB</b><br>Chimney LUU &middot; hops 5 &middot; wire 41 &middot; pcs 580<br>Space / Medium / Normal</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-space.png)</summary><div class="frame"><img src="sheet-space.png" alt="Space contact sheet" loading="lazy"></div></details>
+  <ul class="notes"><li>Stars as stepping stones (<span class="seed">s1 s7</span>) and the hull ribbons (<span class="seed">s3 s6</span>) work. Snow caps on everything look more like winter than space.</li><li><span class="seed">s2</span> carved station: a blob with a grid behind it.</li></ul>
+</section>
+<section class="theme" id="large">
+  <h2>Random themes, Large / Hard</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="random-large-hard-s1.png" alt="Random themes, Large / Hard s1 Verdant Grove 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Verdant Grove 9E37</b><br>Lattice RRU &middot; hops 4 &middot; wire 51 &middot; pcs 760<br>Forest / Large / Hard</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-large-hard-s2.png" alt="Random themes, Large / Hard s2 Flooded Reef 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Flooded Reef 3C6E</b><br>Carved RRUU &middot; hops 5 &middot; wire 28 &middot; pcs 818<br>Water / Large / Hard</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-large-hard-s3.png" alt="Random themes, Large / Hard s3 Forgotten Burrow DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Forgotten Burrow DAA6</b><br>Framed CUU &middot; hops 4 &middot; wire 48 &middot; pcs 570<br>Cave / Large / Hard</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-large-hard-s4.png" alt="Random themes, Large / Hard s4 Lagoon Grotto 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Lagoon Grotto 78DD</b><br>Archipelago CUU &middot; hops 4 &middot; wire 62 &middot; pcs 559<br>Water / Large / Hard</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-random-large-hard.png)</summary><div class="frame"><img src="sheet-random-large-hard.png" alt="Random themes, Large / Hard contact sheet" loading="lazy"></div></details>
+</section>
+<section class="theme" id="small">
+  <h2>Random themes, Small / Easy</h2>
+  <div class="grid">
+    <figure class="thumb"><div class="pic"><img src="random-small-easy-s1.png" alt="Random themes, Small / Easy s1 Verdant Grove 9E37" loading="lazy"></div>
+      <figcaption><b><span class="seed">s1</span> Verdant Grove 9E37</b><br>Carved RRUU &middot; hops 4 &middot; wire 22 &middot; pcs 593<br>Forest / Small / Easy</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-small-easy-s2.png" alt="Random themes, Small / Easy s2 Flooded Reef 3C6E" loading="lazy"></div>
+      <figcaption><b><span class="seed">s2</span> Flooded Reef 3C6E</b><br>Ribbon RRU &middot; hops 3 &middot; wire 63 &middot; pcs 354<br>Water / Small / Easy</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-small-easy-s3.png" alt="Random themes, Small / Easy s3 Forgotten Burrow DAA6" loading="lazy"></div>
+      <figcaption><b><span class="seed">s3</span> Forgotten Burrow DAA6</b><br>Chimney LUU &middot; hops 3 &middot; wire 25 &middot; pcs 400<br>Cave / Small / Easy</figcaption></figure>
+    <figure class="thumb"><div class="pic"><img src="random-small-easy-s4.png" alt="Random themes, Small / Easy s4 Lagoon Grotto 78DD" loading="lazy"></div>
+      <figcaption><b><span class="seed">s4</span> Lagoon Grotto 78DD</b><br>Chimney LUU &middot; hops 4 &middot; wire 28 &middot; pcs 418<br>Water / Small / Easy</figcaption></figure>
+  </div>
+  <details><summary>Contact sheet with metrics (sheet-random-small-easy.png)</summary><div class="frame"><img src="sheet-random-small-easy.png" alt="Random themes, Small / Easy contact sheet" loading="lazy"></div></details>
+</section>
+<footer>Across all themes: the same hanging stalactite fringe appears under every ceiling, open air is above the real maps' share, and the carved cave is still the 1.0.0 blob. Pipes, deck stacks and the big centrepiece tower are not built yet. Nothing is installed; 1.1.0 is still the DLL in the game.</footer>
+</main>
+
+<div class="lightbox fit" id="lightbox" hidden>
+  <div class="lb-bar"><span id="lb-name"></span>
+    <button type="button" data-mode="fit" aria-pressed="true">Fit screen</button>
+    <button type="button" data-mode="px" aria-pressed="false">1:1</button>
+    <button type="button" data-mode="x2" aria-pressed="false">2x</button>
+    <button type="button" data-mode="x3" aria-pressed="false">3x</button>
+    <button type="button" id="lb-prev">Prev</button>
+    <button type="button" id="lb-next">Next</button>
+    <button type="button" id="lb-close">Close (Esc)</button></div>
+  <img id="lb-img" alt="">
+</div>
+
+<script>
+(function () {
+  var lb = document.getElementById('lightbox'), lbImg = document.getElementById('lb-img'), lbName = document.getElementById('lb-name');
+  var all = Array.prototype.slice.call(document.querySelectorAll('figure.thumb img, details .frame img'));
+  var cur = -1;
+  function setMode(m) {
+    lb.classList.remove('fit', 'px', 'x2', 'x3'); lb.classList.add(m);
+    lb.querySelectorAll('button[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-mode') === m ? 'true' : 'false'); });
+  }
+  function show(i) {
+    cur = (i + all.length) % all.length;
+    var img = all[cur];
+    lbImg.src = img.src; lbImg.alt = img.alt; lbName.textContent = img.alt;
+    lbImg.onload = function () { lb.style.setProperty('--w', lbImg.naturalWidth); };
+    lb.scrollTop = 0; lb.scrollLeft = 0;
+  }
+  function open(i) {
+    show(i); lb.hidden = false; document.body.style.overflow = 'hidden';
+    try { if (lb.requestFullscreen) { lb.requestFullscreen().catch(function () {}); } } catch (e) {}
+  }
+  function close() {
+    lb.hidden = true; document.body.style.overflow = '';
+    try { if (document.fullscreenElement) { document.exitFullscreen().catch(function () {}); } } catch (e) {}
+  }
+  all.forEach(function (img, i) { img.addEventListener('click', function () { open(i); }); });
+  lbImg.addEventListener('click', function () { setMode(lb.classList.contains('fit') ? 'x2' : 'fit'); });
+  lb.querySelectorAll('button[data-mode]').forEach(function (b) { b.addEventListener('click', function () { setMode(b.getAttribute('data-mode')); }); });
+  document.getElementById('lb-close').addEventListener('click', close);
+  document.getElementById('lb-prev').addEventListener('click', function () { show(cur - 1); });
+  document.getElementById('lb-next').addEventListener('click', function () { show(cur + 1); });
+  document.addEventListener('keydown', function (e) {
+    if (lb.hidden) { return; }
+    if (e.key === 'Escape') { close(); }
+    else if (e.key === 'ArrowRight') { show(cur + 1); }
+    else if (e.key === 'ArrowLeft') { show(cur - 1); }
+  });
+  document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && !lb.hidden) { close(); } });
+})();
+</script>
+
+</body></html>
